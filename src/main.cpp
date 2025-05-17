@@ -16,28 +16,23 @@
  * modified by @NoRi 2025-05-17
  */
 
+#include <Arduino.h>
 #include <SD.h>
 #include <M5Cardputer.h>
 #include <USB.h>
 #include <USBHIDKeyboard.h>
+#include <M5StackUpdater.h>
 
-extern void m5stack_begin();
-extern void SDU_lobby();
+void m5stack_begin();
+void SDU_lobby();
+bool SD_begin();
+void disp_start();
+bool SD_ENABLE;
 
+SPIClass SPI2;
 USBHIDKeyboard Keyboard;
-
-void disp_start()
-{
-    M5Cardputer.Display.setRotation(1);
-    M5Cardputer.Display.setTextColor(GREEN);
-    M5Cardputer.Display.setTextDatum(middle_center);
-    M5Cardputer.Display.setTextFont(&fonts::Orbitron_Light_24);
-    M5Cardputer.Display.setTextSize(1);
-    // M5Cardputer.Display.drawString(
-    //     "USB Keyboard", M5Cardputer.Display.width() / 2, M5Cardputer.Display.height() / 2);
-    M5Cardputer.Display.drawString(
-        "USB Keyboard", M5Cardputer.Display.width() / 2, 20);
-}
+String const arrow_key[] = {"[left]", "[down]", "[up]", "[right]"};
+int arrow_key_index = -1;
 
 void setup()
 {
@@ -47,9 +42,6 @@ void setup()
     Keyboard.begin();
     USB.begin();
 }
-
-String const arrow_key[] = {"[left]", "[down]", "[up]", "[right]"};
-int arrow_key_index = -1;
 
 void loop()
 {
@@ -114,8 +106,8 @@ void loop()
 
             if (keyStr.length() > 0)
             {
+                // clear half of lower display   
                 M5Cardputer.Display.fillRect(0, M5Cardputer.Display.height() / 2, M5Cardputer.Display.width(), M5Cardputer.Display.height(), TFT_BLACK);
-                // M5Cardputer.Display.clear();
 
                 if (arrow_key_index >= 0 && arrow_key_index <= 3)
                 {
@@ -132,11 +124,81 @@ void loop()
         }
         else
         {
-            // M5Cardputer.Display.clear();
-            // M5Cardputer.Display.drawString(
-            //     "USB Keyboard", M5Cardputer.Display.width() / 2, M5Cardputer.Display.height() / 2);
-
             Keyboard.releaseAll();
         }
     }
+}
+
+void m5stack_begin()
+{
+    auto cfg = M5.config();
+    cfg.serial_baudrate = 115200;
+
+    M5Cardputer.begin(cfg, true);
+
+    // initial display setup
+    M5Cardputer.Display.setBrightness(70);
+    M5Cardputer.Display.setRotation(1);
+    M5Cardputer.Display.fillScreen(TFT_BLACK);
+    M5Cardputer.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+    M5Cardputer.Display.setFont(&fonts::Font0);
+    M5Cardputer.Display.setTextSize(2);
+    M5Cardputer.Display.setTextWrap(false);
+    M5Cardputer.Display.setCursor(0, 0);
+
+    SPI2.begin(
+        M5.getPin(m5::pin_name_t::sd_spi_sclk),
+        M5.getPin(m5::pin_name_t::sd_spi_miso),
+        M5.getPin(m5::pin_name_t::sd_spi_mosi),
+        M5.getPin(m5::pin_name_t::sd_spi_ss));
+
+    SD_ENABLE = SD_begin();
+}
+
+// ------------------------------------------
+// SDU_lobby : SD_uploader lobby
+// ------------------------------------------
+// load "/menu.bin" on SD
+//    if 'a' pressed at booting
+// ------------------------------------------
+void SDU_lobby()
+{
+    M5Cardputer.update();
+    if (M5Cardputer.Keyboard.isKeyPressed('a'))
+    {
+        updateFromFS(SD, "/menu.bin");
+        ESP.restart();
+
+        while (true)
+            ;
+    }
+}
+
+
+bool SD_begin()
+{
+    int i = 0;
+    while (!SD.begin(M5.getPin(m5::pin_name_t::sd_spi_ss), SPI2) && i < 10)
+    {
+        delay(500);
+        i++;
+    }
+
+    if (i >= 10)
+    {
+        Serial.println("ERR: SD begin erro...");
+        return false;
+    }
+
+    return true;
+}
+
+void disp_start()
+{
+    M5Cardputer.Display.setTextColor(GREEN);
+    M5Cardputer.Display.setTextDatum(middle_center);
+    M5Cardputer.Display.setTextFont(&fonts::Orbitron_Light_24);
+    M5Cardputer.Display.setTextSize(1);
+    M5Cardputer.Display.drawString(
+        "USB Keyboard", M5Cardputer.Display.width() / 2, 25);
 }

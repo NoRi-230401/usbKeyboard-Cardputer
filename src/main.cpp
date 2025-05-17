@@ -13,7 +13,8 @@
  * M5Unified: https://github.com/m5stack/M5Unified
  */
 // -----------------------------------------------------------------
- // modified by NoRi 2025-05-17 
+//  modified by NoRi 2025-05-17 
+//  change enviroment to vsCode+PlatformIO
 //  fix to "m5stack/M5Unified @ 0.2.5" in "platformio.ini"
 // -----------------------------------------------------------------
 

@@ -11,22 +11,42 @@
  * @Dependent Library:
  * M5GFX: https://github.com/m5stack/M5GFX
  * M5Unified: https://github.com/m5stack/M5Unified
+ *
+ * modified by @shikarunochi
  */
-// -----------------------------------------------------------------
-//  modified by NoRi 2025-05-17 
-//  change enviroment to vsCode+PlatformIO
-//  fix to "m5stack/M5Unified @ 0.2.5" in "platformio.ini"
-// -----------------------------------------------------------------
 
-#include "M5Cardputer.h"
-#include "USB.h"
-#include "USBHIDKeyboard.h"
+#include <SD.h>
+#include <M5Cardputer.h>
+#include <USB.h>
+#include <USBHIDKeyboard.h>
+
+#include <M5StackUpdater.h>
+
 USBHIDKeyboard Keyboard;
+SPIClass SPI2;
 
 void setup()
 {
     auto cfg = M5.config();
     M5Cardputer.begin(cfg, true);
+    SPI2.begin(
+        M5.getPin(m5::pin_name_t::sd_spi_sclk),
+        M5.getPin(m5::pin_name_t::sd_spi_miso),
+        M5.getPin(m5::pin_name_t::sd_spi_mosi),
+        M5.getPin(m5::pin_name_t::sd_spi_ss));
+    while (false == SD.begin(M5.getPin(m5::pin_name_t::sd_spi_ss), SPI2))
+    {
+        delay(500);
+    }
+
+    M5Cardputer.update();
+
+    if (M5Cardputer.Keyboard.isKeyPressed('a'))
+    {
+        updateFromFS(SD, "/helloWorld.bin");
+        ESP.restart();
+    }
+
     M5Cardputer.Display.setRotation(1);
     M5Cardputer.Display.setTextColor(GREEN);
     M5Cardputer.Display.setTextDatum(middle_center);
@@ -35,6 +55,7 @@ void setup()
     M5Cardputer.Display.drawString("USB Keyboard",
                                    M5Cardputer.Display.width() / 2,
                                    M5Cardputer.Display.height() / 2);
+
     Keyboard.begin();
     USB.begin();
 }
@@ -48,15 +69,32 @@ void loop()
         if (M5Cardputer.Keyboard.isPressed())
         {
             Keyboard_Class::KeysState status = M5Cardputer.Keyboard.keysState();
-            // for (auto i : status.word) {
-            //     Keyboard.press(i);
-            // }
             KeyReport report = {0};
             report.modifiers = status.modifiers;
             uint8_t index = 0;
             for (auto i : status.hid_keys)
             {
-                report.keys[index] = i;
+                auto fixedI = i;
+                if (status.fn)
+                {
+                    switch (i)
+                    {
+                    // https://wiki.onakasuita.org/pukiwiki/?HID%2F%E3%82%AD%E3%83%BC%E3%82%B3%E3%83%BC%E3%83%89
+                    case 0x36:
+                        fixedI = 0x50;
+                        break; //, LeftArrow
+                    case 0x37:
+                        fixedI = 0x51;
+                        break; //. DownArrow
+                    case 0x33:
+                        fixedI = 0x52;
+                        break; //; UpArrow
+                    case 0x38:
+                        fixedI = 0x4F;
+                        break; /// RightArrow
+                    }
+                }
+                report.keys[index] = fixedI;
                 index++;
                 if (index > 5)
                 {
@@ -64,7 +102,7 @@ void loop()
                 }
             }
             Keyboard.sendReport(&report);
-            Keyboard.releaseAll();
+            // Keyboard.releaseAll();
 
             // only text for display
             String keyStr = "";
@@ -94,6 +132,7 @@ void loop()
             M5Cardputer.Display.drawString("USB Keyboard",
                                            M5Cardputer.Display.width() / 2,
                                            M5Cardputer.Display.height() / 2);
+            Keyboard.releaseAll();
         }
     }
 }

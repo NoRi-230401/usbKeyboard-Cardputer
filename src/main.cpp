@@ -28,16 +28,18 @@ void SDU_lobby();
 bool SD_begin();
 void disp_start();
 bool SD_ENABLE;
+String const arrow_key[] = {"[ left ]", "[ down ]", "[ up ]", "[ right ]"};
+int arrow_key_index = -1;
 
 SPIClass SPI2;
 USBHIDKeyboard Keyboard;
-String const arrow_key[] = {"[left]", "[down]", "[up]", "[right]"};
-int arrow_key_index = -1;
 
 void setup()
 {
     m5stack_begin();
-    SDU_lobby();
+    if (SD_ENABLE)
+        SDU_lobby();
+
     disp_start();
     Keyboard.begin();
     USB.begin();
@@ -96,7 +98,7 @@ void loop()
             {
                 if (keyStr != "")
                 {
-                    keyStr = keyStr + "+" + i;
+                    keyStr = keyStr + " + " + i;
                 }
                 else
                 {
@@ -106,19 +108,19 @@ void loop()
 
             if (keyStr.length() > 0)
             {
-                // clear half of lower display   
+                // clear half of lower display
                 M5Cardputer.Display.fillRect(0, M5Cardputer.Display.height() / 2, M5Cardputer.Display.width(), M5Cardputer.Display.height(), TFT_BLACK);
 
                 if (arrow_key_index >= 0 && arrow_key_index <= 3)
                 {
                     M5Cardputer.Display.drawString(arrow_key[arrow_key_index],
-                                                   M5Cardputer.Display.width() / 2, M5Cardputer.Display.height() * 3 / 4);
+                                                   M5Cardputer.Display.width() / 2, M5Cardputer.Display.height() * 2 / 4);
                     arrow_key_index = -1;
                 }
                 else
                 {
                     M5Cardputer.Display.drawString(keyStr,
-                                                   M5Cardputer.Display.width() / 2, M5Cardputer.Display.height() * 3 / 4);
+                                                   M5Cardputer.Display.width() / 2, M5Cardputer.Display.height() * 2 / 4);
                 }
             }
         }
@@ -174,7 +176,6 @@ void SDU_lobby()
     }
 }
 
-
 bool SD_begin()
 {
     int i = 0;
@@ -196,9 +197,9 @@ bool SD_begin()
 void disp_start()
 {
     M5Cardputer.Display.setTextColor(GREEN);
-    M5Cardputer.Display.setTextDatum(middle_center);
+    M5Cardputer.Display.setTextDatum(top_center);
     M5Cardputer.Display.setTextFont(&fonts::Orbitron_Light_24);
     M5Cardputer.Display.setTextSize(1);
     M5Cardputer.Display.drawString(
-        "USB Keyboard", M5Cardputer.Display.width() / 2, 25);
+        "USB Keyboard", M5Cardputer.Display.width() / 2, 10);
 }
